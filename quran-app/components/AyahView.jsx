@@ -1,13 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Play, Pause, BookOpen, Copy, CheckCheck } from 'lucide-react';
+import { Play, Pause, Copy, CheckCheck, Loader2 } from 'lucide-react';
 import { useAudio } from '@/context/AudioContext';
 
 export default function AyahView({ ayahs, translations, surah }) {
-  const { playSurah, togglePlay, isPlaying, currentSurah } = useAudio();
+  const { playAyah, togglePlay, isPlaying, isLoading, currentAyah } = useAudio();
   const [copiedId, setCopiedId] = useState(null);
-  const isCurrentSurah = currentSurah?.number === surah.number;
 
   const handleCopy = (text, id) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -20,13 +19,45 @@ export default function AyahView({ ayahs, translations, surah }) {
     <div className="space-y-4">
       {ayahs.map((ayah, i) => {
         const translation = translations?.ayahs?.[i];
+        const isCurrentAyah =
+          currentAyah?.surahNumber === surah.number &&
+          currentAyah?.ayahNumberInSurah === ayah.numberInSurah;
+
+        const handlePlayAyah = () => {
+          if (isCurrentAyah) {
+            togglePlay();
+            return;
+          }
+
+          playAyah({
+            surah,
+            ayahNumberInSurah: ayah.numberInSurah,
+            globalAyahNumber: ayah.number,
+          });
+        };
+
         return (
           <div key={ayah.number} className="ayah-card group">
             {/* Header row */}
             <div className="flex items-center justify-between mb-5">
               <div className="ayah-number-badge">{ayah.numberInSurah}</div>
 
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+                <button
+                  onClick={handlePlayAyah}
+                  className="px-3 h-8 btn-glass inline-flex items-center gap-1.5 text-xs text-white/70 hover:text-white"
+                  title="Play ayah"
+                >
+                  {isCurrentAyah && isLoading ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : isCurrentAyah && isPlaying ? (
+                    <Pause size={12} />
+                  ) : (
+                    <Play size={12} className="ml-0.5" />
+                  )}
+                  Play
+                </button>
+
                 <button
                   onClick={() => handleCopy(ayah.text + (translation ? '\n\n' + translation.text : ''), ayah.number)}
                   className="w-8 h-8 btn-glass flex items-center justify-center"
