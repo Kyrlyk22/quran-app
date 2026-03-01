@@ -1,12 +1,13 @@
 'use client';
 
 import { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
-import { getAudioUrl, RECITERS } from '@/lib/api';
+import { getSurahAudioUrls, getAyahAudioUrls, RECITERS } from '@/lib/api';
 
 const AudioContext = createContext(null);
 
 export function AudioProvider({ children }) {
   const [currentSurah, setCurrentSurah] = useState(null);
+  const [currentAyah, setCurrentAyah] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentReciter, setCurrentReciter] = useState(RECITERS[0]);
@@ -36,20 +37,89 @@ export function AudioProvider({ children }) {
     };
   }, []);
 
-  const playSurah = useCallback((surah) => {
+  const playFirstAvailableUrl = useCallback(async (urls, shouldAutoplay = true) => {
+    const audio = audioRef.current;
+    if (!audio) return false;
+
+    for (const url of urls) {
+      try {
+        audio.src = url;
+        audio.load();
+
+        if (shouldAutoplay) {
+          await audio.play();
+          setIsPlaying(true);
+        } else {
+          setIsPlaying(false);
+        }
+
+        return true;
+      } catch (error) {
+        console.warn(`Audio source failed: ${url}`, error);
+      }
+    }
+
+    return false;
+  }, []);
+
+  const playSurah = useCallback(async (surah) => {
     const audio = audioRef.current;
     if (!audio) return;
 
     setCurrentSurah(surah);
+    setCurrentAyah(null);
     setIsVisible(true);
     setIsLoading(true);
     setProgress(0);
 
-    const url = getAudioUrl(currentReciter.id, surah.number);
-    audio.src = url;
-    audio.volume = volume;
-    audio.play().then(() => setIsPlaying(true)).catch(() => setIsLoading(false));
-  }, [currentReciter, volume]);
+    try {
+      const urls = await getSurahAudioUrls(currentReciter.id, surah.number);
+      audio.volume = volume;
+      const started = await playFirstAvailableUrl(urls, true);
+
+      if (!started) {
+        throw new Error('All audio providers failed');
+      }
+    } catch (error) {
+      console.error('Failed to play surah audio:', error);
+      setIsPlaying(false);
+      setIsLoading(false);
+    }
+  }, [currentReciter, playFirstAvailableUrl, volume]);
+
+  const playAyah = useCallback(async ({ surah, ayahNumberInSurah, globalAyahNumber }) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    setCurrentSurah(surah);
+    setCurrentAyah({
+      surahNumber: surah.number,
+      ayahNumberInSurah,
+      globalAyahNumber,
+    });
+    setIsVisible(true);
+    setIsLoading(true);
+    setProgress(0);
+
+    try {
+      const urls = await getAyahAudioUrls(
+        currentReciter.id,
+        surah.number,
+        ayahNumberInSurah,
+        globalAyahNumber
+      );
+      audio.volume = volume;
+      const started = await playFirstAvailableUrl(urls, true);
+
+      if (!started) {
+        throw new Error('All ayah audio providers failed');
+      }
+    } catch (error) {
+      console.error('Failed to play ayah audio:', error);
+      setIsPlaying(false);
+      setIsLoading(false);
+    }
+  }, [currentReciter, playFirstAvailableUrl, volume]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
@@ -69,18 +139,38 @@ export function AudioProvider({ children }) {
     audio.currentTime = (percent / 100) * audio.duration;
   }, []);
 
-  const changeReciter = useCallback((reciter) => {
+  const changeReciter = useCallback(async (reciter) => {
     setCurrentReciter(reciter);
-    if (currentSurah) {
-      const audio = audioRef.current;
-      const wasPlaying = isPlaying;
-      const currentTime = audio.currentTime;
-      const url = getAudioUrl(reciter.id, currentSurah.number);
-      audio.src = url;
+
+    if (!currentSurah || !audioRef.current) return;
+
+    const audio = audioRef.current;
+    const wasPlaying = isPlaying;
+
+    setIsLoading(true);
+
+    try {
+      const urls = currentAyah
+        ? await getAyahAudioUrls(
+            reciter.id,
+            currentAyah.surahNumber,
+            currentAyah.ayahNumberInSurah,
+            currentAyah.globalAyahNumber
+          )
+        : await getSurahAudioUrls(reciter.id, currentSurah.number);
+
       audio.currentTime = 0;
-      if (wasPlaying) audio.play().then(() => setIsPlaying(true));
+
+      const started = await playFirstAvailableUrl(urls, wasPlaying);
+      if (!started) {
+        throw new Error('All audio providers failed');
+      }
+    } catch (error) {
+      console.error('Failed to change reciter:', error);
+      setIsPlaying(false);
+      setIsLoading(false);
     }
-  }, [currentSurah, isPlaying]);
+  }, [currentAyah, currentSurah, isPlaying, playFirstAvailableUrl]);
 
   const skipSurah = useCallback((direction) => {
     if (!currentSurah) return;
@@ -97,6 +187,7 @@ export function AudioProvider({ children }) {
   return (
     <AudioContext.Provider value={{
       currentSurah,
+      currentAyah,
       isPlaying,
       isLoading,
       currentReciter,
@@ -105,6 +196,7 @@ export function AudioProvider({ children }) {
       volume,
       isVisible,
       playSurah,
+      playAyah,
       togglePlay,
       seek,
       changeReciter,

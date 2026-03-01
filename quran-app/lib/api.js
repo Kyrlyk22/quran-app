@@ -1,4 +1,6 @@
 const BASE_URL = 'https://api.alquran.cloud/v1';
+const QURAN_COM_BASE_URL = 'https://api.quran.com/api/v4';
+const EVERYAYAH_BASE_URL = 'https://everyayah.com/data';
 
 export async function getAllSurahs() {
   const res = await fetch(`${BASE_URL}/surah`, { next: { revalidate: 86400 } });
@@ -38,11 +40,41 @@ export async function getAyah(reference, edition = 'quran-uthmani') {
 }
 
 export const RECITERS = [
-  { id: 'ar.alafasy', name: 'Mishary Alafasy', nameAr: 'مشاري العفاسي' },
-  { id: 'ar.abdurrahmaansudais', name: 'Abdul Rahman Al-Sudais', nameAr: 'عبدالرحمن السديس' },
-  { id: 'ar.abdullahbasfar', name: 'Abdullah Basfar', nameAr: 'عبدالله بصفر' },
-  { id: 'ar.husary', name: 'Mahmoud Khalil Al-Husary', nameAr: 'محمود خليل الحصري' },
-  { id: 'ar.minshawi', name: 'Mohamed Siddiq El-Minshawi', nameAr: 'محمد صديق المنشاوي' },
+  {
+    id: 'ar.alafasy',
+    name: 'Mishary Alafasy',
+    nameAr: 'مشاري العفاسي',
+    quranComRecitationId: 7,
+    everyayahFolder: 'Alafasy_128kbps',
+  },
+  {
+    id: 'ar.abdurrahmaansudais',
+    name: 'Abdul Rahman Al-Sudais',
+    nameAr: 'عبدالرحمن السديس',
+    quranComRecitationId: 3,
+    everyayahFolder: 'Abdurrahmaan_As-Sudais_192kbps',
+  },
+  {
+    id: 'ar.abdullahbasfar',
+    name: 'Abdullah Basfar',
+    nameAr: 'عبدالله بصفر',
+    quranComRecitationId: 21,
+    everyayahFolder: 'Abdullah_Basfar_192kbps',
+  },
+  {
+    id: 'ar.husary',
+    name: 'Mahmoud Khalil Al-Husary',
+    nameAr: 'محمود خليل الحصري',
+    quranComRecitationId: 5,
+    everyayahFolder: 'Husary_128kbps',
+  },
+  {
+    id: 'ar.minshawi',
+    name: 'Mohamed Siddiq El-Minshawi',
+    nameAr: 'محمد صديق المنشاوي',
+    quranComRecitationId: 6,
+    everyayahFolder: 'Minshawy_Murattal_128kbps',
+  },
 ];
 
 export const TRANSLATIONS = [
@@ -53,9 +85,99 @@ export const TRANSLATIONS = [
   { id: 'fr.hamidullah', name: 'French – Hamidullah' },
 ];
 
+function getReciterById(reciterId) {
+  return RECITERS.find((reciter) => reciter.id === reciterId) || RECITERS[0];
+}
+
+function normalizeAudioUrl(audioUrl) {
+  if (!audioUrl) return null;
+  if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) return audioUrl;
+  if (audioUrl.startsWith('//')) return `https:${audioUrl}`;
+  return `https://audio.qurancdn.com/${audioUrl.replace(/^\/+/, '')}`;
+}
+
 export function getAudioUrl(reciterId, surahNumber) {
   const paddedSurah = String(surahNumber).padStart(3, '0');
   return `https://cdn.islamic.network/quran/audio-surah/128/${reciterId}/${paddedSurah}.mp3`;
+}
+
+export async function getQuranComSurahAudioUrl(reciterId, surahNumber) {
+  const reciter = getReciterById(reciterId);
+  const res = await fetch(
+    `${QURAN_COM_BASE_URL}/chapter_recitations/${reciter.quranComRecitationId}/${surahNumber}`,
+    { cache: 'no-store' }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Quran.com surah audio request failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return normalizeAudioUrl(data?.audio_file?.audio_url);
+}
+
+export async function getQuranComAyahAudioUrl(reciterId, surahNumber, ayahNumberInSurah) {
+  const reciter = getReciterById(reciterId);
+  const ayahKey = `${surahNumber}:${ayahNumberInSurah}`;
+  const res = await fetch(
+    `${QURAN_COM_BASE_URL}/recitations/${reciter.quranComRecitationId}/by_ayah/${ayahKey}`,
+    { cache: 'no-store' }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Quran.com ayah audio request failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return normalizeAudioUrl(data?.audio_files?.[0]?.url || data?.audio_file?.audio_url);
+}
+
+export function getEveryayahSurahAudioUrl(reciterId, surahNumber) {
+  const reciter = getReciterById(reciterId);
+  const paddedSurah = String(surahNumber).padStart(3, '0');
+  return `${EVERYAYAH_BASE_URL}/${reciter.everyayahFolder}/${paddedSurah}.mp3`;
+}
+
+export function getEveryayahAyahAudioUrl(reciterId, globalAyahNumber) {
+  const reciter = getReciterById(reciterId);
+  const paddedAyah = String(globalAyahNumber).padStart(6, '0');
+  return `${EVERYAYAH_BASE_URL}/${reciter.everyayahFolder}/${paddedAyah}.mp3`;
+}
+
+export async function getSurahAudioUrls(reciterId, surahNumber) {
+  const fallbackUrls = [
+    getEveryayahSurahAudioUrl(reciterId, surahNumber),
+    getAudioUrl(reciterId, surahNumber),
+  ];
+
+  try {
+    const quranComAudioUrl = await getQuranComSurahAudioUrl(reciterId, surahNumber);
+    if (quranComAudioUrl) {
+      return [quranComAudioUrl, ...fallbackUrls];
+    }
+  } catch (error) {
+    console.warn('Quran.com surah audio unavailable, trying fallback sources.', error);
+  }
+
+  return fallbackUrls;
+}
+
+export async function getAyahAudioUrls(reciterId, surahNumber, ayahNumberInSurah, globalAyahNumber) {
+  const fallbackUrls = [
+    getEveryayahAyahAudioUrl(reciterId, globalAyahNumber),
+    getAyahAudioUrl(reciterId, globalAyahNumber),
+  ];
+
+  try {
+    const quranComAudioUrl = await getQuranComAyahAudioUrl(reciterId, surahNumber, ayahNumberInSurah);
+    if (quranComAudioUrl) {
+      return [quranComAudioUrl, ...fallbackUrls];
+    }
+  } catch (error) {
+    console.warn('Quran.com ayah audio unavailable, trying fallback sources.', error);
+  }
+
+  return fallbackUrls;
 }
 
 export function getAyahAudioUrl(reciterId, globalAyahNumber) {
