@@ -172,6 +172,23 @@ export function AudioProvider({ children }) {
     }
   }, [currentAyah, currentSurah, isPlaying, playFirstAvailableUrl]);
 
+  const stopAndReset = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.src = '';
+    }
+
+    setIsPlaying(false);
+    setIsLoading(false);
+    setProgress(0);
+    setDuration(0);
+    setCurrentSurah(null);
+    setCurrentAyah(null);
+    setIsVisible(false);
+  }, []);
+
   const skipSurah = useCallback((direction) => {
     if (!currentSurah) return;
     const nextNumber = currentSurah.number + direction;
@@ -204,6 +221,7 @@ export function AudioProvider({ children }) {
       updateVolume,
       setCurrentSurah,
       setIsVisible,
+      stopAndReset,
     }}>
       {children}
     </AudioContext.Provider>
