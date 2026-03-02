@@ -42,7 +42,7 @@ export default async function SurahPage({ params, searchParams }) {
   const showBismillah = surah.number !== 1 && surah.number !== 9;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-6">
       {/* Sticky Surah Header */}
       <div className="sticky top-16 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 glass-header mb-8">
         <div className="flex items-center justify-between gap-4">

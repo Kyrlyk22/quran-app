@@ -4,8 +4,7 @@ import { useState, useCallback } from 'react';
 import { useAudio } from '@/context/AudioContext';
 import { RECITERS } from '@/lib/api';
 import {
-  Play, Pause, SkipBack, SkipForward, Volume2, ChevronDown,
-  Music2, Loader2, X, ChevronUp
+  Play, Pause, Music2, Loader2, X
 } from 'lucide-react';
 
 function formatTime(secs) {
@@ -18,13 +17,11 @@ function formatTime(secs) {
 export default function AudioPlayer() {
   const {
     currentSurah, isPlaying, isLoading, currentReciter,
-    progress, duration, volume, isVisible,
-    togglePlay, seek, changeReciter, updateVolume, setIsVisible
+    progress, duration, isVisible,
+    togglePlay, seek, changeReciter, stopAndReset
   } = useAudio();
 
   const [showReciters, setShowReciters] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-
   const handleSeek = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -145,7 +142,10 @@ export default function AudioPlayer() {
                 Reciter
               </button>
               <button
-                onClick={() => setIsVisible(false)}
+                onClick={() => {
+                  setShowReciters(false);
+                  stopAndReset();
+                }}
                 className="w-8 h-8 btn-glass flex items-center justify-center"
               >
                 <X size={14} className="text-white/50" />

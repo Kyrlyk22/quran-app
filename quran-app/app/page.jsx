@@ -7,7 +7,7 @@ export default async function HomePage() {
   const surahs = await getAllSurahs();
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       {/* Hero */}
       <div className="text-center mb-12 animate-fade-up">
         <div className="inline-flex items-center gap-2 btn-glass px-4 py-2 text-xs text-white/50 mb-6">
