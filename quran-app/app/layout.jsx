@@ -1,47 +1,44 @@
-import { Inter } from 'next/font/google';
-import localFont from 'next/font/local';
+/* eslint-disable @next/next/no-page-custom-font */
 import './globals.css';
 import { AudioProvider } from '@/context/AudioContext';
 import AudioPlayer from '@/components/AudioPlayer';
 import Header from '@/components/Header';
 
-const sfPro = Inter({
-  subsets: ['latin'],
-  variable: '--font-sf',
-  display: 'swap',
-});
-
 export const metadata = {
-  title: 'Quran – The Noble Recitation',
-  description: 'A beautiful, modern Quran reading experience with translations and audio recitation.',
-  keywords: 'Quran, Islam, Arabic, recitation, translation',
+  title: 'The Sacred Breath — Quran Reader',
+  description: 'Immersive Quran reading experience with surahs, ayahs, translations, and recitation.',
+  keywords: 'Quran, surah, ayah, translation, recitation, islam',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" dir="ltr">
+    <html lang="ru" dir="ltr">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Scheherazade+New:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Manrope:wght@400;500;600;700;800&family=Noto+Serif:wght@400;700&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className={`${sfPro.variable} font-sf antialiased`}>
+      <body>
         <AudioProvider>
-          <div className="min-h-screen bg-gradient-main relative overflow-x-hidden">
-            {/* Ambient orbs */}
-            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-              <div className="orb orb-1" />
-              <div className="orb orb-2" />
-              <div className="orb orb-3" />
-            </div>
+          <div className="site-shell">
             <Header />
-            <main className="relative z-10 pb-32">
-              {children}
-            </main>
+            <main className="page-frame">{children}</main>
             <AudioPlayer />
+            <footer className="site-footer">
+              <div className="site-footer-inner">
+                <div className="footer-brand">The Sacred Breath</div>
+                <div className="footer-copy">© 2024 The Sacred Breath. A Digital Maqam.</div>
+                <div className="footer-links">
+                  <a href="#">Contact</a>
+                  <a href="#">About Us</a>
+                  <a href="#">Privacy Policy</a>
+                  <a href="#">Terms of Service</a>
+                </div>
+              </div>
+            </footer>
           </div>
         </AudioProvider>
       </body>
